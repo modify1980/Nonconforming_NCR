@@ -6,7 +6,7 @@ import RecordsList from './components/RecordsList';
 import ReportForm from './components/ReportForm';
 import PrintSheet from './components/PrintSheet';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart2, ClipboardList, FileSpreadsheet, FlaskConical, PlusCircle, ShieldCheck } from 'lucide-react';
+import { BarChart2, ClipboardList, FileSpreadsheet, FlaskConical, PlusCircle, ShieldCheck, Lock, Unlock, Key, LogOut, ShieldAlert, UserCheck } from 'lucide-react';
 
 export default function App() {
   // Load initially from localStorage, fall back to INITIAL_REPORTS
@@ -21,6 +21,15 @@ export default function App() {
     }
     return INITIAL_REPORTS;
   });
+
+  // Admin Mode states
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    return sessionStorage.getItem('ncr_is_admin') === 'true';
+  });
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [pendingAction, setPendingAction] = useState<{ type: 'create' | 'edit' | 'delete'; data?: any } | null>(null);
 
   // Save reports to localStorage whenever state changes
   useEffect(() => {
@@ -44,8 +53,51 @@ export default function App() {
     }, 3500);
   };
 
+  const handleLogout = () => {
+    setIsAdmin(false);
+    sessionStorage.removeItem('ncr_is_admin');
+    triggerToast('ออกจากระบบผู้ดูแลระบบแล้ว');
+  };
+
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === '1234') {
+      setIsAdmin(true);
+      sessionStorage.setItem('ncr_is_admin', 'true');
+      setShowAuthModal(false);
+      setAdminPassword('');
+      setAuthError('');
+      triggerToast('เข้าสู่ระบบผู้ดูแลระบบสำเร็จ!');
+
+      // Execute pending action if any
+      if (pendingAction) {
+        if (pendingAction.type === 'create') {
+          setEditingReport(null);
+          setActiveTab('report');
+        } else if (pendingAction.type === 'edit') {
+          setEditingReport(pendingAction.data);
+          setActiveTab('report');
+        } else if (pendingAction.type === 'delete') {
+          const id = pendingAction.data;
+          setReports(prev => prev.filter(r => r.id !== id));
+          triggerToast(`ลบรายงานสำเร็จ! เลขที่ ${id}`);
+        }
+        setPendingAction(null);
+      }
+    } else {
+      setAuthError('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   // Create / Update reports handler
   const handleSaveReport = (savedReport: NCRReport) => {
+    // Double check admin authorization
+    if (!isAdmin) {
+      setPendingAction({ type: 'create' });
+      setShowAuthModal(true);
+      return;
+    }
+
     const exists = reports.some(r => r.id === savedReport.id);
     if (exists) {
       setReports(prev => prev.map(r => r.id === savedReport.id ? savedReport : r));
@@ -62,12 +114,22 @@ export default function App() {
 
   // Delete report handler
   const handleDeleteReport = (id: string) => {
+    if (!isAdmin) {
+      setPendingAction({ type: 'delete', data: id });
+      setShowAuthModal(true);
+      return;
+    }
     setReports(prev => prev.filter(r => r.id !== id));
     triggerToast(`ลบรายงานสำเร็จ! เลขที่ ${id}`);
   };
 
   // Setup editing triggers
   const handleEditReport = (report: NCRReport) => {
+    if (!isAdmin) {
+      setPendingAction({ type: 'edit', data: report });
+      setShowAuthModal(true);
+      return;
+    }
     setEditingReport(report);
     setActiveTab('report');
   };
@@ -79,6 +141,11 @@ export default function App() {
   };
 
   const handleCreateNewReport = () => {
+    if (!isAdmin) {
+      setPendingAction({ type: 'create' });
+      setShowAuthModal(true);
+      return;
+    }
     setEditingReport(null);
     setActiveTab('report');
   };
@@ -132,6 +199,33 @@ export default function App() {
                 <span className="text-[10px] font-extrabold tracking-widest text-slate-400 block uppercase">CURRENT ENVIRONMENT</span>
                 <span className="text-xs font-bold text-sky-400">กลุ่มงานเทคนิคการแพทย์ รพร.เดชอุดม</span>
               </div>
+              
+              {/* Admin Mode Toggle / Badge */}
+              {isAdmin ? (
+                <div className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 px-3 py-2 rounded-xl text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>ผู้ดูแลระบบ</span>
+                  <button 
+                    onClick={handleLogout}
+                    title="ออกจากระบบผู้ดูแลระบบ"
+                    className="ml-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setPendingAction(null);
+                    setShowAuthModal(true);
+                  }}
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>เข้าสู่ระบบ Admin</span>
+                </button>
+              )}
+
               <button
                 onClick={handleCreateNewReport}
                 className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-5 py-3 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer hover:shadow-sky-500/10 active:scale-98"
@@ -260,6 +354,104 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Admin Authentication Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowAuthModal(false);
+                setPendingAction(null);
+                setAdminPassword('');
+                setAuthError('');
+              }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 max-w-sm w-full relative z-10 overflow-hidden"
+            >
+              {/* Header Icon Decoration */}
+              <div className="mx-auto w-12 h-12 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-600 mb-4 border border-sky-100">
+                <Key className="w-6 h-6" />
+              </div>
+
+              <div className="text-center mb-5">
+                <h3 className="text-base font-bold text-slate-800">ยืนยันรหัสผ่านผู้ดูแลระบบ</h3>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  {pendingAction 
+                    ? `คุณจำเป็นต้องใส่รหัสผ่านผู้ดูแลระบบเพื่อดำเนินการนี้`
+                    : 'กรุณากรอกรหัสผ่านผู้ดูแลระบบเพื่อเข้าใช้สิทธิ์แก้ไขข้อมูล'}
+                </p>
+                {pendingAction && (
+                  <span className="inline-block mt-2 px-2 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-bold rounded-md border border-amber-200">
+                    {pendingAction.type === 'create' && '➕ การสร้างรายงานใหม่'}
+                    {pendingAction.type === 'edit' && '📝 การแก้ไขรายงาน'}
+                    {pendingAction.type === 'delete' && '❌ การลบรายงาน'}
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    รหัสผ่านเข้าใช้งาน (Admin Password)
+                  </label>
+                  <input
+                    type="password"
+                    autoFocus
+                    required
+                    placeholder="กรอกรหัสผ่าน 4 หลัก..."
+                    value={adminPassword}
+                    onChange={(e) => {
+                      setAdminPassword(e.target.value);
+                      if (authError) setAuthError('');
+                    }}
+                    className="w-full px-4 py-2.5 text-center text-lg font-mono tracking-widest bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  />
+                  {authError && (
+                    <p className="text-[10px] font-bold text-rose-600 text-center flex items-center justify-center gap-1 mt-1">
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      {authError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAuthModal(false);
+                      setPendingAction(null);
+                      setAdminPassword('');
+                      setAuthError('');
+                    }}
+                    className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer text-center"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-sm transition-all cursor-pointer text-center"
+                  >
+                    เข้าสู่ระบบ
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
