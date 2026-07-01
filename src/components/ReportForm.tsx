@@ -5,11 +5,12 @@ import { AlertCircle, ArrowLeft, ArrowRight, Check, Plus, Trash2 } from 'lucide-
 
 interface ReportFormProps {
   existingReport?: NCRReport | null;
+  reports: NCRReport[];
   onSave: (report: NCRReport) => void;
   onCancel: () => void;
 }
 
-export default function ReportForm({ existingReport, onSave, onCancel }: ReportFormProps) {
+export default function ReportForm({ existingReport, reports, onSave, onCancel }: ReportFormProps) {
   // Current active step index (0-based)
   const [activeStep, setActiveStep] = useState(0);
 
@@ -109,10 +110,20 @@ export default function ReportForm({ existingReport, onSave, onCancel }: ReportF
         signatures: { ...existingReport.signatures }
       });
     } else {
-      // Create new unique NCR ID based on Timestamp running number
-      const runningNo = Math.floor(Math.random() * 9000) + 1000;
-      setNcrId(`NCR-2026-${runningNo}`);
-      setCapaId(`CAPA-2026-${runningNo}`);
+      // Find the next sequence number automatically based on existing reports
+      let nextNum = 1;
+      if (reports && reports.length > 0) {
+        const numbers = reports.map(r => {
+          const match = r.id.match(/NCR-\d{4}-(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        });
+        const maxNum = Math.max(...numbers, 0);
+        nextNum = maxNum + 1;
+      }
+      const currentYear = new Date().getFullYear();
+      const formattedSeq = String(nextNum).padStart(4, '0');
+      setNcrId(`NCR-${currentYear}-${formattedSeq}`);
+      setCapaId(`CAPA-${currentYear}-${formattedSeq}`);
       setIsCustomReporter(false);
       setCustomSectionInput('');
     }

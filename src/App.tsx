@@ -239,6 +239,7 @@ export default function App() {
             {activeTab === 'report' && (
               <ReportForm
                 existingReport={editingReport}
+                reports={reports}
                 onSave={handleSaveReport}
                 onCancel={() => {
                   setEditingReport(null);
