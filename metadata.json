@@ -1,0 +1,6 @@
+{
+  "name": "Nonconforming Event Report",
+  "description": "แบบฟอร์มบันทึกงานที่ไม่เป็นไปตามข้อกำหนดในห้องปฏิบัติการเทคนิคการแพทย์ รพร.เดชอุดม (NCR) และแดชบอร์ดสรุปสถิติตามมาตรฐาน ISO 15189:2022",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
