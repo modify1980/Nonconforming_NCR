@@ -4,12 +4,13 @@ import { Download, Edit2, Eye, FileSpreadsheet, Search, Trash2 } from 'lucide-re
 
 interface RecordsListProps {
   reports: NCRReport[];
+  isAdmin: boolean;
   onViewReport: (report: NCRReport) => void;
   onEditReport: (report: NCRReport) => void;
   onDeleteReport: (id: string) => void;
 }
 
-export default function RecordsList({ reports, onViewReport, onEditReport, onDeleteReport }: RecordsListProps) {
+export default function RecordsList({ reports, isAdmin, onViewReport, onEditReport, onDeleteReport }: RecordsListProps) {
   // Search and Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSection, setFilterSection] = useState('');
@@ -285,8 +286,12 @@ export default function RecordsList({ reports, onViewReport, onEditReport, onDel
                         {/* Delete Icon */}
                         <button
                           onClick={() => {
-                            if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบใบรายงาน ${report.id}?`)) {
+                            if (!isAdmin) {
                               onDeleteReport(report.id);
+                            } else {
+                              if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบใบรายงาน ${report.id}?`)) {
+                                onDeleteReport(report.id);
+                              }
                             }
                           }}
                           title="ลบรายงานนี้"

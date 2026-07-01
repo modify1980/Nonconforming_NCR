@@ -324,6 +324,7 @@ export default function App() {
             {activeTab === 'list' && (
               <RecordsList
                 reports={reports}
+                isAdmin={isAdmin}
                 onViewReport={handleViewReport}
                 onEditReport={handleEditReport}
                 onDeleteReport={handleDeleteReport}
